@@ -24,13 +24,13 @@ namespace EventMgmt.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<int> BulkUploadEventSchedule(IFormFile formFile)
         {
-            using var connection = _context.sqlconnection();
+            using var connection = _context.Sqlconnection();
             try
             {
                 if (formFile == null || formFile.Length == 0)
                     throw new BadRequestException("No file uploaded.");
 
-                var records = ReadExcelFile(formFile);
+                var records = ReadFile(formFile);
                 DataTable dtEventSchedule = new();
                 dtEventSchedule.Columns.Add("EventID", typeof(int));
                 dtEventSchedule.Columns.Add("StartDate", typeof(DateTime));
@@ -60,7 +60,7 @@ namespace EventMgmt.Controllers
         }
         private async void SaveProjectScheduleData(DataTable dtEventSchedule)
         {
-            using var connection = _context.sqlconnection();
+            using var connection = _context.Sqlconnection();
             {
                 using (SqlCommand command = new("sp_exBulkUploadEventSchedule", connection))
                 {
@@ -78,7 +78,7 @@ namespace EventMgmt.Controllers
             }
         }
 
-        private static async Task<List<BulkImportToEventScheduleDTO>> ReadExcelFile(IFormFile formFile)
+        private static async Task<List<BulkImportToEventScheduleDTO>> ReadFile(IFormFile formFile)
         {
             List<BulkImportToEventScheduleDTO> records = new();
             try
@@ -192,7 +192,7 @@ namespace EventMgmt.Controllers
                 }
                 int recordCount = records.Count;
                 if (recordCount > 100)
-                    errorMsg += "100 records are allowed to create event from bulk upload." + "\n";
+                    errorMsg += "100 records are allowed to create event task from bulk upload." + "\n";
             }
             else
                 errorMsg += "No records found.";
