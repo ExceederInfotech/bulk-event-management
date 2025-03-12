@@ -38,19 +38,19 @@ namespace EventMgmt.Controllers
                 dtEventSchedule.Columns.Add("StartTime", typeof(string));
                 dtEventSchedule.Columns.Add("EndTime", typeof(string));
                 dtEventSchedule.Columns.Add("EventTitle", typeof(string));
-                dtEventSchedule.Columns.Add("Note", typeof(string));
+                dtEventSchedule.Columns.Add("Comments", typeof(string));
                 dtEventSchedule.Columns.Add("Address", typeof(string));
 
                 var result = await records;
-                foreach (var taskDetails in result)
+                foreach (var eventDetails in result)
                 {
-                    dtEventSchedule.Rows.Add(taskDetails.EventID,
-                                               taskDetails.StartDate, taskDetails.EndDate,
-                                               taskDetails.StartTime, taskDetails.EndTime,
-                                               taskDetails.EventTitle, taskDetails.Notes,
-                                               taskDetails.Address);
+                    dtEventSchedule.Rows.Add(eventDetails.EventID,
+                                               eventDetails.StartDate, eventDetails.EndDate,
+                                               eventDetails.StartTime, eventDetails.EndTime,
+                                               eventDetails.EventTitle, eventDetails.Comments,
+                                               eventDetails.Address);
                 }
-                SaveProjectScheduleData(dtEventSchedule);
+                SaveEventScheduleData(dtEventSchedule);
             }
             catch (Exception)
             {
@@ -58,7 +58,7 @@ namespace EventMgmt.Controllers
             }
             return 0;
         }
-        private async void SaveProjectScheduleData(DataTable dtEventSchedule)
+        private async void SaveEventScheduleData(DataTable dtEventSchedule)
         {
             using var connection = _context.Sqlconnection();
             {
@@ -78,12 +78,11 @@ namespace EventMgmt.Controllers
             }
         }
 
-        private static async Task<List<BulkImportToEventScheduleDTO>> ReadFile(IFormFile formFile)
+        private static async Task<List<EventScheduleDTO>> ReadFile(IFormFile formFile)
         {
-            List<BulkImportToEventScheduleDTO> records = new();
+            List<EventScheduleDTO> records = new();
             try
             {
-                // check file type
                 var extension = Path.GetExtension(formFile.FileName).ToLower();
                 string[] formats = { "MM/dd/yyyy", "M/d/yyyy", "MM-dd-yyyy", "M-d-yyyy" };
 
@@ -109,15 +108,15 @@ namespace EventMgmt.Controllers
                                     endDate = DateTime.ParseExact(endDateCellValue, formats, CultureInfo.InvariantCulture);
                                 }
 
-                                BulkImportToEventScheduleDTO bulkImportDTO = new()
+                                EventScheduleDTO bulkImportDTO = new()
                                 {
-                                    EventID = int.TryParse(rows[0], out var taskId) ? (int?)taskId : null,
+                                    EventID = int.TryParse(rows[0], out var eventId) ? (int?)eventId : null,
                                     StartDate = startDate,
                                     EndDate = endDate,
                                     StartTime = rows[3],
                                     EndTime = rows[4],
                                     EventTitle = rows[5],
-                                    Notes = rows[6],
+                                    Comments = rows[6],
                                     Address = rows[7]
                                 };
                                 records.Add(bulkImportDTO);
@@ -148,7 +147,7 @@ namespace EventMgmt.Controllers
                                     endDate = DateTime.ParseExact(endDateCellValue, formats, CultureInfo.InvariantCulture);
                                 }
 
-                                BulkImportToEventScheduleDTO bulkImportDTO = new()
+                                EventScheduleDTO bulkImportDTO = new()
                                 {
                                     EventID = row.Cell(1).GetValue<int?>(),
                                     StartDate = startDate,
@@ -156,7 +155,7 @@ namespace EventMgmt.Controllers
                                     StartTime = row.Cell(4).GetString(),
                                     EndTime = row.Cell(5).GetString(),
                                     EventTitle = row.Cell(6).GetString(),
-                                    Notes = row.Cell(7).GetString(),
+                                    Comments = row.Cell(7).GetString(),
                                     Address = row.Cell(8).GetString()
                                 };
                                 records.Add(bulkImportDTO);
@@ -173,13 +172,13 @@ namespace EventMgmt.Controllers
             return records;
         }
 
-        private static void ValidateRecords(List<BulkImportToEventScheduleDTO> records)
+        private static void ValidateRecords(List<EventScheduleDTO> records)
         {
             string errorMsg = string.Empty;
             int recordTrack = 1;
             if (records.Count > 0)
             {
-                foreach (BulkImportToEventScheduleDTO scheduleTimeline in records)
+                foreach (EventScheduleDTO scheduleTimeline in records)
                 {
                     recordTrack++;
                     string EventTitle = string.Empty;
@@ -191,8 +190,8 @@ namespace EventMgmt.Controllers
                         errorMsg += "Start date should not be greater than End date at line no. " + recordTrack + "\n";
                 }
                 int recordCount = records.Count;
-                if (recordCount > 100)
-                    errorMsg += "100 records are allowed to create event task from bulk upload." + "\n";
+                if (recordCount > 25)
+                    errorMsg += "25 records are allowed to create event from bulk upload." + "\n";
             }
             else
                 errorMsg += "No records found.";
