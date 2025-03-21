@@ -8,7 +8,7 @@ using System.Globalization;
 
 namespace EventMgmt.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/[controller]/[Action]")]
     [ApiController]
     public class EventScheduleController : ControllerBase
     {
@@ -181,11 +181,6 @@ namespace EventMgmt.Controllers
                 foreach (EventScheduleDTO scheduleTimeline in records)
                 {
                     recordTrack++;
-                    string EventTitle = string.Empty;
-                    EventTitle = scheduleTimeline.EventTitle.Trim();
-                    if (string.IsNullOrEmpty(EventTitle))
-                        errorMsg += "Event title should not empty at line no. " + recordTrack + "\n";
-
                     if (scheduleTimeline.StartDate > scheduleTimeline.EndDate)
                         errorMsg += "Start date should not be greater than End date at line no. " + recordTrack + "\n";
                 }
@@ -200,6 +195,155 @@ namespace EventMgmt.Controllers
 
             if (!string.IsNullOrEmpty(errorMsg))
                 throw new BadRequestException(errorMsg);
+        }
+        [HttpPost]
+        public int SaveEvent(CreateEventDTO createEvent)
+        {
+            using var connection = _context.Sqlconnection();
+            {
+                using (SqlCommand command = new("sp_AddEventSchedule", connection))
+                {
+                    connection.Open();
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandTimeout = 0;
+                    command.Parameters.Clear();
+                    command.Parameters.AddWithValue("@StartDate", createEvent.StartDate);
+                    command.Parameters.AddWithValue("@EndDate", createEvent.EndDate);
+                    string StartTime = createEvent.StartDate.TimeOfDay.ToString();
+                    string EndTime = createEvent.EndDate.TimeOfDay.ToString();
+                    command.Parameters.AddWithValue("@StartTime", StartTime);
+                    command.Parameters.AddWithValue("@EndTime", EndTime);
+                    command.Parameters.AddWithValue("@EventName", createEvent.EventTitle);
+                    command.Parameters.AddWithValue("@NOTES", createEvent.Comment);
+                    command.Parameters.AddWithValue("@EventAddress", createEvent.EventAddress);
+                    command.ExecuteNonQuery();
+                }
+            }
+            return 0;
+        }
+
+        [HttpGet]
+        public List<EventDetailsDTO> GetAllEventDetails()
+        {
+            using var connection = _context.Sqlconnection();
+            using (var command = connection.CreateCommand())
+            {
+                List<EventDetailsDTO> result1 = new();
+                command.CommandType = CommandType.StoredProcedure;
+                command.CommandText = "sp_GetEvents";
+                try
+                {
+                    connection.Open();
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            EventDetailsDTO eventDetails = new();
+                            eventDetails.EventId = reader.GetFieldValue<int>("EventID");
+                            eventDetails.EventName = reader.GetFieldValue<string>("EventName");
+                            eventDetails.StartDate = reader.GetFieldValue<DateTime>("StartDate").ToString("MM/dd/yyyy");
+                            eventDetails.EndDate = reader.GetFieldValue<DateTime>("EndDate").ToString("MM/dd/yyyy");
+                            result1.Add(eventDetails);
+                        }
+                    }
+                }
+                catch (SqlException ex)
+                {
+
+                }
+                return result1;
+            }
+        }
+
+        [HttpDelete]
+        public int DeleteEventByEventID(int id)
+        {
+            using var connection = _context.Sqlconnection();
+            using (var command = connection.CreateCommand())
+            {
+                try
+                {
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = "sp_DeleteEvent";
+                    command.Parameters.Clear();
+                    connection.Open();
+                    command.Parameters.AddWithValue("@EventID", id);
+                    command.ExecuteNonQuery();
+                }
+                catch (SqlException ex)
+                {
+                    throw new(ex.Message);
+                }
+                return 0;
+            }
+        }
+
+        [HttpGet("{id}")]
+        public EventDetailsDTO GetEventDetailsByEventID(int id)
+        {
+            using var connection = _context.Sqlconnection();
+            using (var command = connection.CreateCommand())
+            {
+                EventDetailsDTO createEvent = new();
+                command.CommandType = CommandType.StoredProcedure;
+                command.CommandText = "sp_GetEventDetailsByID";
+                command.Parameters.AddWithValue("@EventID", id);
+                try
+                {
+                    connection.Open();
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            createEvent.EventName = reader.GetFieldValue<string?>("EventName");
+                            createEvent.Comments = reader.GetFieldValue<string?>("Comments");
+                            createEvent.StartDate = reader.GetFieldValue<DateTime>("StartDate").ToString("MM/dd/yyyy");
+                            createEvent.EndDate = reader.GetFieldValue<DateTime>("EndDate").ToString("MM/dd/yyyy");
+                            createEvent.Address = reader.GetFieldValue<string?>("Address");
+                        }
+                    }
+                }
+                catch (SqlException ex)
+                {
+                }
+                return createEvent;
+            }
+        }
+
+        [HttpGet("{id}")]
+        public List<EventScheduleDTO> GetScheduleDetailsByEventID(int id)
+        {
+            using var connection = _context.Sqlconnection();
+            using (var command = connection.CreateCommand())
+            {
+                List<EventScheduleDTO> result1 = new();
+                command.CommandType = CommandType.StoredProcedure;
+                command.CommandText = "sp_GetEventScheduleDetailsByID";
+                command.Parameters.AddWithValue("@EventID", id);
+                try
+                {
+                    connection.Open();
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            EventScheduleDTO eventSchedule = new();
+                            eventSchedule.EventTitle = reader.GetFieldValue<string?>("EventName");
+                            eventSchedule.ScheduleDate = reader.GetFieldValue<DateTime>("ScheduleDate").ToString("MM/dd/yyyy");
+                            string startTime = reader.GetFieldValue<string>("StartTime");
+                            eventSchedule.StartTime = startTime.Substring(0, startTime.Length - 3);
+                            string endTime = reader.GetFieldValue<string>("EndTime");
+                            eventSchedule.EndTime = endTime.Substring(0, endTime.Length - 3);
+                            result1.Add(eventSchedule);
+                        }
+                    }
+                }
+                catch (SqlException ex)
+                {
+
+                }
+                return result1;
+            }
         }
     }
 }

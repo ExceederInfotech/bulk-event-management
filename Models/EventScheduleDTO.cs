@@ -10,5 +10,6 @@
         public string? EventTitle { get; set; }
         public string? Comments { get; set; }
         public string? Address { get; set; }
+        public string ScheduleDate { get; set; }
     }
 }
